@@ -19,6 +19,8 @@
 # are also specific to shamu devices
 #
 
+$(call inherit-product, vendor/motorola/shamu/shamu-vendor.mk)
+
 # Input device files
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/keylayout/gpio-keys.kl:system/usr/keylayout/gpio-keys.kl \
