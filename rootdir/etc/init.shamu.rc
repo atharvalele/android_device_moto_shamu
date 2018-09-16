@@ -38,6 +38,8 @@ on init
     write /proc/sys/vm/page-cluster 0
 
 on fs
+    # Start HW service manager early
+    start hwservicemanager
     mount_all fstab.shamu --early
     swapon_all fstab.shamu
 
@@ -65,9 +67,6 @@ on fs
     setprop persist.data.df.agg.dl_pkt 10
     setprop persist.data.df.agg.dl_size 4096
 
-    # Start HW service manager early
-    start hwservicemanager
-
 on late-fs
     # Start services for bootanim
     start servicemanager
@@ -79,6 +78,10 @@ on late-fs
     start configstore-hal-1-0
     start gralloc-2-0
 
+    # Wait for hwservicemanager ready since fsck might be triggered in mount_all --late
+    # In such case, init won't responce the property_set from hwservicemanager and then
+    # cause services for bootanim not running.
+    wait_for_prop hwservicemanager.ready true
     # Mount RW partitions which need run fsck
     mount_all /fstab.shamu --late
 
@@ -353,7 +356,7 @@ on property:ro.bluetooth.ftm_enabled=true
 on property:persist.env.fastdorm.enabled=true
     setprop persist.radio.data_no_toggle 1
 
-service irsc_util /system/bin/irsc_util "/etc/sec_config"
+service irsc_util /system/bin/irsc_util "vendor/etc/sec_config"
     class main
     user root
     oneshot
@@ -460,9 +463,6 @@ on property:sys.boot_completed=1
     # headset high perf mode
     write /sys/module/snd_soc_wcd9320/parameters/high_perf_mode 1
 
-    rm /data/system/perfd/default_values
-    start mpdecision
-
 on property:ro.data.large_tcp_window_size=true
     # Adjust socket buffer to enlarge TCP receive window for high bandwidth (e.g. DO-RevB)
     write /proc/sys/net/ipv4/tcp_adv_win_scale  2
@@ -495,7 +495,6 @@ service mpdecision /system/bin/mpdecision --avg_comp
    class main
    user root
    group root readproc
-   disabled
    writepid /dev/cpuset/system-background/tasks
 
 service thermal-engine /system/vendor/bin/thermal-engine
